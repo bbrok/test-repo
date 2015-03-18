@@ -1,0 +1,85 @@
+#--------------------------------------------------
+#Script: 2_NetcdfToRaster.py
+#Author: Stefanie Bohms, SGT Inc. (USGS/EROS), with code from http://support.esri.com/en/knowledgebase/techarticles/detail/39248
+#Use: Convert Daymet tiles (.nc files) to raster format for each day
+#Note: Needs ArcGIS 10 or ArcGIS 10.1
+#modified to take a start year and end year for each day for the month of october
+
+#import modules
+import arcpy
+from arcpy.sa import *
+from arcpy import env
+import sys, os, traceback, datetime, time
+import string, glob
+arcpy.CheckOutExtension("Spatial")
+
+#Output directory where downloaded data are - enter path when prompted by script
+filedir = raw_input('Enter Output path (e.g. D:\daymet): ')
+#year for which data will be converted - enter year when prompted by script
+startYear = raw_input('Enter start year(yyyy): ')
+endYear = raw_input('Enter end year(yyyy)')
+
+try:
+	# enter txt file with tile IDs, see tiles.txt for example - enter path when prompted by script
+	tiletxtdir = raw_input('Enter path and tile list (e.g. D:\daymet\tiles.txt): ')
+	#access txt file
+	tiles = open(tiletxtdir, 'r') 
+	#enter weather parameter e.g. tmin  - enter parameter when prompted by script
+	type = raw_input('Enter type: ')
+	s = 1
+	for n in range(int(startYear),(int(endYear) + 1):
+		year = str(n)
+		#create a folder with the year in .nc output folder entered 
+		yeardir = filedir + os.sep + year
+		if not os.path.exists(yeardir):
+			os.mkdir(yeardir)
+		
+		#loops through txt file and creates daily rasters for each layer in the .nc file
+		for tile in tiles:
+			print "Start converting .nc file bands to tif for tile ID " +tile
+			intile = tile[0:5]
+			tiledir = yeardir + os.sep + str(intile)
+			if not os.path.exists(tiledir):
+				os.mkdir(tiledir)
+			#define input .nc file
+			netfile = tiledir + os.sep + type + '.nc'
+			print netfile
+			RasterLayer = tiledir + os.sep + str(type) +'_layer' + str(s)
+			print RasterLayer
+			#define output netcdf raster name
+			Output_Raster = tiledir + os.sep + 'netcdf_raster.tif'
+		
+			# Execute MakeNetCDFRasterLayer
+			arcpy.MakeNetCDFRasterLayer_md(netfile, type, 'x', 'y', RasterLayer, '', '', '')
+
+			resultValue = 305
+			count = 274
+			
+			#create a folder with the parameter type entered
+			out1 = tiledir + os.sep + type
+			if not os.path.exists(out1):
+				os.mkdir(out1)
+		
+			#Loop through the bands in the netcdf file and copy bands as a seperate TIF file. Exporting individual bands from Output_Raster.
+			while count <= int(resultValue):
+				print "created tif file for band at index (day) " + str(count)
+
+				# Execute SelectByDimension tool
+				valueSelect = ["time", count]
+				net_layer = arcpy.SelectByDimension_md(RasterLayer, [valueSelect], "BY_INDEX")
+				#define output tif name
+				output = out1 + os.sep + type +'_' + str(count) +".tif"
+				arcpy.CopyRaster_management(net_layer, output)
+				arcpy.AddMessage(output + " " "exported" + " " + "successfully")
+				count += 1
+
+			del count
+			del resultValue
+		
+			s += 1
+except:
+	tb = sys.exc_info()[2]
+	tbinfo = traceback.format_tb(tb)[0]
+	pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
+	arcpy.AddError(pymsg)
+	print pymsg
